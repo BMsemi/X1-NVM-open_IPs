@@ -6,13 +6,6 @@ This page highlights verified open-source designs, SoCs, or research demos integ
 
 ---
 
-## 🧠 Inclusion Criteria
-- Clear **application focus** (what it does).  
-- Uses **ReRAM/NVM and/or neuromorphic** techniques meaningfully.  
-- Public repositories with **real artifacts** (RTL, SoC glue, testbench, or verified documentation).
-
----
-
 ## 📘 Project Table
 
 | Repository | Application Focus | Team / Contributors |
