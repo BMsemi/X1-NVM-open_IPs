@@ -179,7 +179,6 @@ This repository is a curated collection of links to external projects. Each link
 
 ---
 
-**Maintained by**: BMsemi  
-**Last Updated**: October 2025
+**Maintained by**: [BMsemi](https://github.com/BMsemi)
 
 For questions or suggestions, please open an issue on this repository.
