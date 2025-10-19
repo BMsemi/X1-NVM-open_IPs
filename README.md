@@ -1,7 +1,6 @@
 # X1-NVM-open_IPs
 # Neuromorphic & ReRAM NVM Project Gallery
 
-Curated examples of projects that **use neuromorphic compute and/or ReRAM-based NVM** in meaningful ways (beyond simple scaffolds).  
 This page highlights verified open-source designs, SoCs, or research demos integrating NVM-based synapses, loggers, and edge processors.
 
 ---
