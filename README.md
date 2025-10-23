@@ -1,3 +1,4 @@
+![X1-NVM Use Cases](https://github.com/BMsemi/X1-NVM-open_IPs/blob/main/X1_usecases.jpg)
 # X1-NVM-open_IPs
 # Neuromorphic & ReRAM NVM Project Gallery
 
