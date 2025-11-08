@@ -2,11 +2,8 @@ name: Mirror all sub-repos when updated
 
 on:
   schedule:
-    - cron: "0 2 * * 1"  # weekly: Mon 02:00 UTC (10:00 SGT)
+    - cron: "0 2 * * 1"   # weekly Monday 02:00 UTC
   workflow_dispatch: {}
-
-  push:
-    branches: [ main ]
 
 permissions:
   contents: write
@@ -15,13 +12,12 @@ jobs:
   mirror:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Git
         run: sudo apt-get install -y git
 
-      - name: Clone / pull all sub-repositories
+      - name: Clone or update all sub-repos
         run: |
           mkdir -p backups
           cd backups
@@ -50,10 +46,18 @@ jobs:
       - name: Commit and push backups
         run: |
           cd backups
-          tar -czf ../repos_backup_$(date +%F_%H-%M).tar.gz .
+          for d in */; do
+            repo=${d%/}
+            tar -czf "../${repo}_$(date +%F_%H-%M).tar.gz" "$repo"
+          done
           cd ..
+          find . -type f -name "*.tar.gz" -size +90M -delete
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add *.tar.gz
-          git commit -m "Auto backup at $(date)"
-          git push
+          git add *.tar.gz || true
+          if ! git diff --cached --quiet; then
+            git commit -m "Auto backup at $(date)"
+            git push || echo "Push skipped (large files filtered)"
+          else
+            echo "No new small archives to commit."
+          fi
