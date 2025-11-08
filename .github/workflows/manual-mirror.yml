@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       repo:
-        description: "Enter the GitHub repo to mirror (e.g. final3blindside/HE-PSMRC)"
+        description: "GitHub repo to mirror (e.g. mthudaa/har_reram)"
         required: true
         type: string
 
@@ -15,38 +15,58 @@ jobs:
   mirror:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup environment
-        run: |
-          mkdir -p mirrors
-          echo "Mirroring ${{ github.event.inputs.repo }}"
+      # 1) You MUST checkout so we're inside a git repo
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          # if you use a PAT later, don't persist the default token
+          persist-credentials: false
 
+      # 2) Switch to (or create) the backup branch that stores mirrors
+      - name: Ensure backup branch exists
+        run: |
+          git fetch origin backup || true
+          if git rev-parse --verify origin/backup >/dev/null 2>&1; then
+            git checkout -B backup origin/backup
+          else
+            git checkout -b backup
+          fi
+
+      # 3) Mirror the selected repo into mirrors/<name>.git
       - name: Mirror the selected repo
         run: |
+          set -e
+          mkdir -p mirrors
           cd mirrors
           target="${{ github.event.inputs.repo }}"
-          name=$(basename "$target")
+          name="$(basename "$target")"
           if [ -d "$name.git" ]; then
             echo "Updating existing mirror for $target"
-            cd "$name.git"
-            git remote update
-            cd ..
+            git -C "$name.git" remote update
           else
             echo "Cloning mirror for $target"
             git clone --mirror "https://github.com/$target.git" "$name.git"
           fi
 
-      - name: Commit and push mirror to backup branch
+      # 4) Commit & push the change to the backup branch
+      #    Uses PAT if provided, else falls back to GITHUB_TOKEN (needs write perms)
+      - name: Commit and push mirrors
+        env:
+          PAT_PUSH: ${{ secrets.PAT_PUSH }}   # optional; add in repo Settings > Secrets
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin backup || git branch backup
-          git checkout backup || git checkout -b backup
-          mkdir -p mirrors
-          cp -r mirrors/* .
-          git add .
+          git config user.name "bm-labs-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add mirrors/
           if git diff --cached --quiet; then
-            echo "No changes detected for backup."
-          else
-            git commit -m "Manual mirror update for ${{ github.event.inputs.repo }} at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-            git push origin backup
+            echo "No changes to commit."
+            exit 0
           fi
+          git commit -m "Mirror update: ${{ github.event.inputs.repo }} @ $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+
+          # If org enforces read-only GITHUB_TOKEN, push with PAT
+          if [ -n "$PAT_PUSH" ]; then
+            git remote set-url origin "https://x-access-token:${PAT_PUSH}@github.com/${{ github.repository }}.git"
+          fi
+
+          git push origin backup
