@@ -2,8 +2,9 @@ name: Mirror all sub-repos when updated
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # every 30 min
-  workflow_dispatch: {}       # manual run
+    - cron: "0 2 * * 1"  # weekly: Mon 02:00 UTC (10:00 SGT)
+  workflow_dispatch: {}
+
   push:
     branches: [ main ]
 
