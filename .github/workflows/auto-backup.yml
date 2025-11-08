@@ -1,0 +1,58 @@
+name: Mirror all sub-repos when updated
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 min
+  workflow_dispatch: {}       # manual run
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Git
+        run: sudo apt-get install -y git
+
+      - name: Clone / pull all sub-repositories
+        run: |
+          mkdir -p backups
+          cd backups
+          repos=(
+            "final3blindside/HE-PSMRC"
+            "DhruvBDixit/Caravel-based_ReRAM-Accelerated_Safe-State_Logger_for_Edge_Devices"
+            "Juan-AquinoH/secure_logger_controller"
+            "ebatzolis/ReRAM-Based-Ultra-Low-Power-ECG-Anomaly-Detector-with-Patient-Adaptive-Learning"
+            "mthudaa/har_reram"
+            "ha-jer-9/smart_pwm"
+            "partcleda/caravel_user_neuromorphic_comp"
+            "Lefteris-B/ReRAM-Accelerated-Edge-Intelligence-Processor"
+            "schizoneko/EDABK_SNN_CIM"
+          )
+          for repo in "${repos[@]}"; do
+            name=$(basename "$repo")
+            if [ -d "$name" ]; then
+              echo "Updating $repo"
+              git -C "$name" pull --ff-only || true
+            else
+              echo "Cloning $repo"
+              git clone --mirror "https://github.com/$repo.git" "$name"
+            fi
+          done
+
+      - name: Commit and push backups
+        run: |
+          cd backups
+          tar -czf ../repos_backup_$(date +%F_%H-%M).tar.gz .
+          cd ..
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add *.tar.gz
+          git commit -m "Auto backup at $(date)"
+          git push
