@@ -1,8 +1,8 @@
-name: Mirror all sub-repos when updated
+name: Mirror all sub-repos weekly
 
 on:
   schedule:
-    - cron: "0 2 * * 1"   # weekly Monday 02:00 UTC
+    - cron: "0 2 * * 1"   # weekly Mon 02:00 UTC (10 AM SGT)
   workflow_dispatch: {}
 
 permissions:
@@ -13,14 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1  # you just need the workflow files here
 
-      - name: Install Git
-        run: sudo apt-get install -y git
-
-      - name: Clone or update all sub-repos
+      - name: Mirror each sub-repo
         run: |
-          mkdir -p backups
-          cd backups
+          mkdir mirrors
+          cd mirrors
           repos=(
             "final3blindside/HE-PSMRC"
             "DhruvBDixit/Caravel-based_ReRAM-Accelerated_Safe-State_Logger_for_Edge_Devices"
@@ -34,30 +33,28 @@ jobs:
           )
           for repo in "${repos[@]}"; do
             name=$(basename "$repo")
-            if [ -d "$name" ]; then
-              echo "Updating $repo"
-              git -C "$name" pull --ff-only || true
+            mirror_dir="${name}.git"
+            if [ -d "$mirror_dir" ]; then
+              echo "Updating mirror of $repo"
+              cd "$mirror_dir"
+              git remote update
+              cd ..
             else
-              echo "Cloning $repo"
-              git clone --mirror "https://github.com/$repo.git" "$name"
+              echo "Cloning mirror of $repo"
+              git clone --mirror "https://github.com/$repo.git" "$mirror_dir"
             fi
           done
-
-      - name: Commit and push backups
-        run: |
-          cd backups
-          for d in */; do
-            repo=${d%/}
-            tar -czf "../${repo}_$(date +%F_%H-%M).tar.gz" "$repo"
-          done
           cd ..
-          find . -type f -name "*.tar.gz" -size +90M -delete
+
+      - name: Push mirrors to backup repo
+        run: |
+          # You might create a separate branch for mirrors or push into subdirectory
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add *.tar.gz || true
-          if ! git diff --cached --quiet; then
-            git commit -m "Auto backup at $(date)"
-            git push || echo "Push skipped (large files filtered)"
+          git add mirrors
+          if git diff --cached --quiet; then
+            echo "No changes to mirrors"
           else
-            echo "No new small archives to commit."
+            git commit -m "mirror backup: $(date)"
+            git push
           fi
