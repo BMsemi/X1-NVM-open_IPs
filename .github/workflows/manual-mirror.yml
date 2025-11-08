@@ -1,0 +1,52 @@
+name: Manual Mirror Selected Repo
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "Enter the GitHub repo to mirror (e.g. final3blindside/HE-PSMRC)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup environment
+        run: |
+          mkdir -p mirrors
+          echo "Mirroring ${{ github.event.inputs.repo }}"
+
+      - name: Mirror the selected repo
+        run: |
+          cd mirrors
+          target="${{ github.event.inputs.repo }}"
+          name=$(basename "$target")
+          if [ -d "$name.git" ]; then
+            echo "Updating existing mirror for $target"
+            cd "$name.git"
+            git remote update
+            cd ..
+          else
+            echo "Cloning mirror for $target"
+            git clone --mirror "https://github.com/$target.git" "$name.git"
+          fi
+
+      - name: Commit and push mirror to backup branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin backup || git branch backup
+          git checkout backup || git checkout -b backup
+          mkdir -p mirrors
+          cp -r mirrors/* .
+          git add .
+          if git diff --cached --quiet; then
+            echo "No changes detected for backup."
+          else
+            git commit -m "Manual mirror update for ${{ github.event.inputs.repo }} at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            git push origin backup
+          fi
